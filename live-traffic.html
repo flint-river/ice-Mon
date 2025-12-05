@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Airport Traffic - FR24 Powered</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            padding: 15px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #333;
+        }
+        
+        h1 {
+            font-size: 22px;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+        
+        .subtitle {
+            color: #3ce78c;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+        
+        .timestamp {
+            color: #888;
+            font-size: 12px;
+        }
+        
+        .api-setup {
+            background: #252540;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .api-setup h3 {
+            color: #4a90d9;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .api-setup .row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .api-setup input {
+            flex: 1;
+            min-width: 200px;
+            background: #1a1a2e;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        
+        .api-setup input::placeholder {
+            color: #666;
+        }
+        
+        .api-setup button {
+            padding: 10px 20px;
+            background: #3ce78c;
+            color: #000;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .api-setup button:hover {
+            background: #2ecc71;
+        }
+        
+        .api-setup .status {
+            font-size: 11px;
+            margin-top: 8px;
+        }
+        
+        .api-setup .status.success { color: #3ce78c; }
+        .api-setup .status.error { color: #e74c3c; }
+        .api-setup .status.info { color: #4a90d9; }
+        
+        .api-setup .help-link {
+            font-size: 11px;
+            color: #888;
+            margin-top: 8px;
+        }
+        
+        .api-setup .help-link a {
+            color: #4a90d9;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: #4a90d9;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        
+        button:hover:not(:disabled) {
+            background: #5a9fe9;
+        }
+        
+        .airport-selector {
+            background: #252540;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .airport-selector h3 {
+            color: #fff;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .airport-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .airport-chip {
+            background: #1a1a2e;
+            border: 1px solid #444;
+            color: #aaa;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .airport-chip:hover {
+            border-color: #666;
+            color: #fff;
+        }
+        
+        .airport-chip.selected {
+            background: #3ce78c;
+            border-color: #3ce78c;
+            color: #000;
+            font-weight: 600;
+        }
+        
+        .airport-chip .count {
+            background: rgba(0,0,0,0.2);
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 4px;
+            font-size: 10px;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .summary-card {
+            background: #252540;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .summary-card .count {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .summary-card .label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+        }
+        
+        .summary-card.total { border-left: 4px solid #3ce78c; }
+        .summary-card.total .count { color: #3ce78c; }
+        
+        .summary-card.ground { border-left: 4px solid #f39c12; }
+        .summary-card.ground .count { color: #f39c12; }
+        
+        .summary-card.airborne { border-left: 4px solid #3498db; }
+        .summary-card.airborne .count { color: #3498db; }
+        
+        .summary-card.approaching { border-left: 4px solid #9b59b6; }
+        .summary-card.approaching .count { color: #9b59b6; }
+        
+        .airport-section {
+            background: #252540;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+        
+        .airport-header {
+            background: #1f3d2d;
+            border-bottom: 1px solid #3a8c5a;
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .airport-header:hover {
+            background: #254535;
+        }
+        
+        .airport-header h3 {
+            color: #3ce78c;
+            font-size: 14px;
+        }
+        
+        .airport-header .stats {
+            display: flex;
+            gap: 15px;
+            font-size: 12px;
+        }
+        
+        .airport-header .stat {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .airport-header .stat.ground { color: #f39c12; }
+        .airport-header .stat.air { color: #3498db; }
+        .airport-header .stat.arr { color: #9b59b6; }
+        
+        .airport-content {
+            padding: 15px;
+        }
+        
+        .airport-content.collapsed {
+            display: none;
+        }
+        
+        .airline-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .airline-card {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 10px;
+        }
+        
+        .airline-card .name {
+            font-weight: 600;
+            color: #fff;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+        
+        .airline-card .counts {
+            display: flex;
+            gap: 10px;
+            font-size: 11px;
+        }
+        
+        .airline-card .counts span {
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        
+        .airline-card .counts .ground {
+            background: #3d2d1a;
+            color: #f39c12;
+        }
+        
+        .airline-card .counts .air {
+            background: #1a2d3d;
+            color: #3498db;
+        }
+        
+        .flights-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #1a1a2e;
+            border-radius: 6px;
+            padding: 10px;
+        }
+        
+        .flight-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #252540;
+            font-size: 12px;
+        }
+        
+        .flight-row:last-child {
+            border-bottom: none;
+        }
+        
+        .flight-row .callsign {
+            font-family: 'Courier New', monospace;
+            color: #4a90d9;
+            font-weight: bold;
+        }
+        
+        .flight-row .route {
+            color: #888;
+        }
+        
+        .flight-row .status {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+        }
+        
+        .flight-row .status.ground {
+            background: #3d2d1a;
+            color: #f39c12;
+        }
+        
+        .flight-row .status.airborne {
+            background: #1a2d3d;
+            color: #3498db;
+        }
+        
+        .flight-row .status.approaching {
+            background: #2d1a3d;
+            color: #9b59b6;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .loading .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333;
+            border-top-color: #3ce78c;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #3d1f1f;
+            border: 1px solid #5c3a3a;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            color: #ff6b6b;
+        }
+        
+        .error button {
+            margin-top: 15px;
+            background: #c0392b;
+        }
+        
+        .credits-display {
+            text-align: center;
+            font-size: 11px;
+            color: #888;
+            margin-top: 10px;
+        }
+        
+        .credits-display .used {
+            color: #f39c12;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #333;
+            color: #555;
+            font-size: 11px;
+        }
+        
+        footer a {
+            color: #4a90d9;
+        }
+        
+        .no-token-message {
+            background: #2d2d1f;
+            border: 1px solid #5c5c3a;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .no-token-message h3 {
+            color: #f1c40f;
+            margin-bottom: 15px;
+        }
+        
+        .no-token-message ol {
+            text-align: left;
+            max-width: 400px;
+            margin: 0 auto;
+            color: #aaa;
+            font-size: 13px;
+        }
+        
+        .no-token-message ol li {
+            margin-bottom: 8px;
+        }
+        
+        .no-token-message a {
+            color: #4a90d9;
+        }
+
+        .queue-estimate {
+            background: #1a3d3d;
+            border: 1px solid #3a8c8c;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        
+        .queue-estimate .title {
+            color: #1abc9c;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .queue-estimate .value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+        }
+        
+        .queue-estimate .note {
+            font-size: 10px;
+            color: #888;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>✈️ Live Airport Traffic</h1>
+            <div class="subtitle">Powered by Flightradar24 API</div>
+            <div class="timestamp" id="timestamp">Configure API token to begin</div>
+        </header>
+        
+        <div class="api-setup" id="apiSetup">
+            <h3>🔑 FR24 API Configuration</h3>
+            <div class="row">
+                <input type="password" id="apiToken" placeholder="Paste your FR24 API token here..." />
+                <button onclick="saveToken()">Save Token</button>
+                <button onclick="toggleTokenVisibility()" style="background:#555;padding:10px 12px;">👁️</button>
+            </div>
+            <div class="status" id="tokenStatus"></div>
+            <div class="help-link">
+                Don't have a token? <a href="https://fr24api.flightradar24.com/" target="_blank">Get one here</a> ($9/month Explorer plan)
+            </div>
+        </div>
+        
+        <div class="airport-selector">
+            <h3>📍 Select Airports to Monitor</h3>
+            <div class="airport-chips" id="airportChips">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="fetchBtn" onclick="fetchAllData()" disabled>🔄 Fetch Live Data</button>
+            <button onclick="window.opener ? window.close() : window.location.href='index.html'" style="background:#555;">← Back to Deicing Monitor</button>
+        </div>
+        
+        <div class="credits-display" id="creditsDisplay" style="display:none;">
+            Credits used this session: <span class="used" id="creditsUsed">0</span>
+        </div>
+        
+        <div id="content">
+            <div class="no-token-message" id="noTokenMessage">
+                <h3>🔐 API Token Required</h3>
+                <p style="margin-bottom:15px;color:#aaa;">To use live traffic data, you need a Flightradar24 API subscription.</p>
+                <ol>
+                    <li>Go to <a href="https://fr24api.flightradar24.com/" target="_blank">fr24api.flightradar24.com</a></li>
+                    <li>Log in with your FR24 account (same as Gold)</li>
+                    <li>Subscribe to <strong>Explorer</strong> plan ($9/month)</li>
+                    <li>Generate an API token in Key Management</li>
+                    <li>Paste it above and click Save Token</li>
+                </ol>
+                <p style="margin-top:15px;color:#888;font-size:11px;">
+                    🎉 Current promo: 2x credits through Nov 30, 2025!
+                </p>
+            </div>
+        </div>
+        
+        <footer>
+            Data: <a href="https://www.flightradar24.com" target="_blank">Flightradar24</a> • 
+            <a href="https://fr24api.flightradar24.com/docs" target="_blank">API Docs</a>
+        </footer>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE = 'https://fr24api.flightradar24.com/api';
+        
+        // Major airports to monitor (focused on deicing-prone)
+        const AIRPORTS = {
+            'KORD': { name: 'Chicago O\'Hare', lat: 41.9742, lon: -87.9073 },
+            'KJFK': { name: 'New York JFK', lat: 40.6413, lon: -73.7781 },
+            'KBOS': { name: 'Boston Logan', lat: 42.3656, lon: -71.0096 },
+            'KMSP': { name: 'Minneapolis', lat: 44.8848, lon: -93.2223 },
+            'KDTW': { name: 'Detroit', lat: 42.2162, lon: -83.3554 },
+            'KDEN': { name: 'Denver', lat: 39.8561, lon: -104.6737 },
+            'KSEA': { name: 'Seattle', lat: 47.4502, lon: -122.3088 },
+            'KEWR': { name: 'Newark', lat: 40.6895, lon: -74.1745 },
+            'KPHL': { name: 'Philadelphia', lat: 39.8744, lon: -75.2424 },
+            'KCLE': { name: 'Cleveland', lat: 41.4117, lon: -81.8498 },
+            'KPIT': { name: 'Pittsburgh', lat: 40.4915, lon: -80.2329 },
+            'KMDW': { name: 'Chicago Midway', lat: 41.7868, lon: -87.7522 },
+            'KBUF': { name: 'Buffalo', lat: 42.9405, lon: -78.7322 },
+            'KSYR': { name: 'Syracuse', lat: 43.1112, lon: -76.1063 },
+            'KALB': { name: 'Albany', lat: 42.7483, lon: -73.8017 },
+            'KSLC': { name: 'Salt Lake City', lat: 40.7899, lon: -111.9791 },
+            'KPDX': { name: 'Portland OR', lat: 45.5898, lon: -122.5951 },
+            'KLGA': { name: 'New York LaGuardia', lat: 40.7769, lon: -73.8740 },
+            'KDCA': { name: 'Washington Reagan', lat: 38.8512, lon: -77.0402 },
+            'KIAD': { name: 'Washington Dulles', lat: 38.9531, lon: -77.4565 }
+        };
+        
+        // Airline codes mapping
+        const AIRLINES = {
+            'AAL': 'American', 'DAL': 'Delta', 'UAL': 'United', 'SWA': 'Southwest',
+            'JBU': 'JetBlue', 'ASA': 'Alaska', 'NKS': 'Spirit', 'FFT': 'Frontier',
+            'SKW': 'SkyWest', 'RPA': 'Republic', 'ENY': 'Envoy', 'ASH': 'Mesa',
+            'EDV': 'Endeavor', 'GJS': 'GoJet', 'ACA': 'Air Canada', 'WJA': 'WestJet',
+            'BAW': 'British Airways', 'DLH': 'Lufthansa', 'AFR': 'Air France',
+            'UAE': 'Emirates', 'QTR': 'Qatar', 'SIA': 'Singapore', 'CPA': 'Cathay',
+            'ANA': 'ANA', 'JAL': 'JAL', 'KAL': 'Korean Air', 'FDX': 'FedEx', 'UPS': 'UPS'
+        };
+        
+        let selectedAirports = ['KORD', 'KJFK', 'KBOS']; // Default selection
+        let creditsUsed = 0;
+        let airportData = {};
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initAirportChips();
+            loadSavedToken();
+            loadSavedAirports();
+        });
+        
+        function initAirportChips() {
+            const container = document.getElementById('airportChips');
+            container.innerHTML = '';
+            
+            for (const [icao, info] of Object.entries(AIRPORTS)) {
+                const chip = document.createElement('div');
+                chip.className = 'airport-chip' + (selectedAirports.includes(icao) ? ' selected' : '');
+                chip.dataset.icao = icao;
+                chip.innerHTML = `${icao} <span style="color:#888;">${info.name}</span>`;
+                chip.onclick = () => toggleAirport(icao, chip);
+                container.appendChild(chip);
+            }
+        }
+        
+        function toggleAirport(icao, chip) {
+            if (selectedAirports.includes(icao)) {
+                selectedAirports = selectedAirports.filter(a => a !== icao);
+                chip.classList.remove('selected');
+            } else {
+                if (selectedAirports.length >= 5) {
+                    alert('Maximum 5 airports to conserve API credits');
+                    return;
+                }
+                selectedAirports.push(icao);
+                chip.classList.add('selected');
+            }
+            localStorage.setItem('fr24_airports', JSON.stringify(selectedAirports));
+        }
+        
+        function loadSavedAirports() {
+            const saved = localStorage.getItem('fr24_airports');
+            if (saved) {
+                try {
+                    selectedAirports = JSON.parse(saved);
+                    initAirportChips(); // Refresh chips
+                } catch (e) {}
+            }
+        }
+        
+        function loadSavedToken() {
+            const token = localStorage.getItem('fr24_api_token');
+            if (token) {
+                document.getElementById('apiToken').value = token;
+                validateToken(token);
+            }
+        }
+        
+        function saveToken() {
+            const token = document.getElementById('apiToken').value.trim();
+            if (!token) {
+                showTokenStatus('Please enter a token', 'error');
+                return;
+            }
+            
+            localStorage.setItem('fr24_api_token', token);
+            validateToken(token);
+        }
+        
+        async function validateToken(token) {
+            showTokenStatus('Validating token...', 'info');
+            
+            try {
+                // Try a simple API call to validate
+                const response = await fetch(`${API_BASE}/static/airlines`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json',
+                        'Accept-Version': 'v1'
+                    }
+                });
+                
+                if (response.ok) {
+                    showTokenStatus('✓ Token valid! Ready to fetch data.', 'success');
+                    document.getElementById('fetchBtn').disabled = false;
+                    document.getElementById('noTokenMessage').style.display = 'none';
+                    document.getElementById('creditsDisplay').style.display = 'block';
+                } else if (response.status === 401 || response.status === 403) {
+                    showTokenStatus('✗ Invalid token. Please check and try again.', 'error');
+                    document.getElementById('fetchBtn').disabled = true;
+                } else {
+                    showTokenStatus(`⚠ API returned ${response.status}. Token may still work.`, 'info');
+                    document.getElementById('fetchBtn').disabled = false;
+                }
+            } catch (e) {
+                // CORS or network error - token might still be valid
+                showTokenStatus('⚠ Could not validate (network issue). Try fetching data.', 'info');
+                document.getElementById('fetchBtn').disabled = false;
+                document.getElementById('noTokenMessage').style.display = 'none';
+            }
+        }
+        
+        function showTokenStatus(msg, type) {
+            const el = document.getElementById('tokenStatus');
+            el.textContent = msg;
+            el.className = 'status ' + type;
+        }
+        
+        function toggleTokenVisibility() {
+            const input = document.getElementById('apiToken');
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+        
+        async function fetchAllData() {
+            const token = localStorage.getItem('fr24_api_token');
+            if (!token) {
+                alert('Please save your API token first');
+                return;
+            }
+            
+            if (selectedAirports.length === 0) {
+                alert('Please select at least one airport');
+                return;
+            }
+            
+            const btn = document.getElementById('fetchBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Fetching...';
+            
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <div id="loadingStatus">Fetching data for ${selectedAirports.length} airports...</div>
+                </div>
+            `;
+            
+            airportData = {};
+            let totalFlights = 0;
+            let totalGround = 0;
+            let totalAir = 0;
+            let totalApproaching = 0;
+            
+            for (let i = 0; i < selectedAirports.length; i++) {
+                const icao = selectedAirports[i];
+                const info = AIRPORTS[icao];
+                
+                document.getElementById('loadingStatus').textContent = 
+                    `Fetching ${icao} (${i + 1}/${selectedAirports.length})...`;
+                
+                try {
+                    const data = await fetchAirportData(token, icao, info);
+                    if (data) {
+                        airportData[icao] = data;
+                        totalFlights += data.total;
+                        totalGround += data.ground;
+                        totalAir += data.airborne;
+                        totalApproaching += data.approaching;
+                    }
+                } catch (e) {
+                    console.error(`Error fetching ${icao}:`, e);
+                    airportData[icao] = { error: e.message };
+                }
+                
+                // Small delay between requests
+                if (i < selectedAirports.length - 1) {
+                    await new Promise(r => setTimeout(r, 300));
+                }
+            }
+            
+            // Render results
+            renderResults(totalFlights, totalGround, totalAir, totalApproaching);
+            
+            btn.disabled = false;
+            btn.textContent = '🔄 Refresh Data';
+            
+            document.getElementById('timestamp').textContent = 
+                `Last updated: ${new Date().toLocaleTimeString()}`;
+            document.getElementById('creditsUsed').textContent = creditsUsed;
+        }
+        
+        async function fetchAirportData(token, icao, info) {
+            // Create bounding box around airport (roughly 20nm = 0.33 degrees)
+            const boxSize = 0.35;
+            const bounds = {
+                north: info.lat + boxSize,
+                south: info.lat - boxSize,
+                east: info.lon + boxSize,
+                west: info.lon - boxSize
+            };
+            
+            // FR24 API - Live flight positions endpoint
+            const url = `${API_BASE}/live/flight-positions/full?` + new URLSearchParams({
+                bounds: `${bounds.north},${bounds.south},${bounds.west},${bounds.east}`
+            });
+            
+            console.log(`Fetching: ${url}`);
+            
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                    'Accept-Version': 'v1'
+                }
+            });
+            
+            creditsUsed++;
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`API Error ${response.status}:`, errorText);
+                throw new Error(`API Error: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log(`${icao} response:`, data);
+            
+            // Process the flight data
+            const flights = data.data || [];
+            
+            let ground = 0;
+            let airborne = 0;
+            let approaching = 0;
+            let departing = 0;
+            const airlines = {};
+            const flightList = [];
+            
+            for (const flight of flights) {
+                const isOnGround = flight.on_ground === true;
+                const altitude = flight.altitude?.feet || flight.alt || 0;
+                const verticalSpeed = flight.vertical_speed?.fpm || 0;
+                const callsign = flight.callsign || flight.flight || 'N/A';
+                
+                // Identify airline
+                const airlineCode = callsign.substring(0, 3);
+                const airlineName = AIRLINES[airlineCode] || airlineCode;
+                
+                if (!airlines[airlineName]) {
+                    airlines[airlineName] = { ground: 0, airborne: 0, approaching: 0 };
+                }
+                
+                let status = 'airborne';
+                if (isOnGround) {
+                    ground++;
+                    airlines[airlineName].ground++;
+                    status = 'ground';
+                } else {
+                    airborne++;
+                    airlines[airlineName].airborne++;
+                    
+                    // Low altitude and descending = approaching
+                    if (altitude < 10000 && verticalSpeed < -200) {
+                        approaching++;
+                        airlines[airlineName].approaching++;
+                        status = 'approaching';
+                    } else if (altitude < 5000 && verticalSpeed > 200) {
+                        departing++;
+                    }
+                }
+                
+                // Add to flight list
+                flightList.push({
+                    callsign: callsign,
+                    airline: airlineName,
+                    origin: flight.origin?.iata || flight.orig_iata || '???',
+                    destination: flight.destination?.iata || flight.dest_iata || '???',
+                    altitude: altitude,
+                    status: status,
+                    aircraft: flight.aircraft?.model || flight.equip || ''
+                });
+            }
+            
+            // Sort flight list - ground first, then approaching, then airborne
+            flightList.sort((a, b) => {
+                const order = { ground: 0, approaching: 1, airborne: 2 };
+                return order[a.status] - order[b.status];
+            });
+            
+            return {
+                total: flights.length,
+                ground: ground,
+                airborne: airborne,
+                approaching: approaching,
+                departing: departing,
+                airlines: airlines,
+                flights: flightList.slice(0, 50) // Limit to 50 for display
+            };
+        }
+        
+        function renderResults(total, ground, air, approaching) {
+            const content = document.getElementById('content');
+            
+            let html = `
+                <div class="summary-grid">
+                    <div class="summary-card total">
+                        <div class="count">${total}</div>
+                        <div class="label">Total Aircraft</div>
+                    </div>
+                    <div class="summary-card ground">
+                        <div class="count">${ground}</div>
+                        <div class="label">On Ground</div>
+                    </div>
+                    <div class="summary-card airborne">
+                        <div class="count">${air}</div>
+                        <div class="label">Airborne</div>
+                    </div>
+                    <div class="summary-card approaching">
+                        <div class="count">${approaching}</div>
+                        <div class="label">Approaching</div>
+                    </div>
+                </div>
+            `;
+            
+            // Render each airport
+            for (const icao of selectedAirports) {
+                const data = airportData[icao];
+                const info = AIRPORTS[icao];
+                
+                if (!data) continue;
+                
+                if (data.error) {
+                    html += `
+                        <div class="airport-section">
+                            <div class="airport-header" style="background:#3d1f1f;border-color:#5c3a3a;">
+                                <h3 style="color:#e74c3c;">${icao} - ${info.name}</h3>
+                                <span style="color:#ff6b6b;">Error: ${data.error}</span>
+                            </div>
+                        </div>
+                    `;
+                    continue;
+                }
+                
+                const sectionId = `section-${icao}`;
+                
+                html += `
+                    <div class="airport-section">
+                        <div class="airport-header" onclick="toggleSection('${sectionId}')">
+                            <h3>${icao} - ${info.name}</h3>
+                            <div class="stats">
+                                <span class="stat ground">🛬 ${data.ground} ground</span>
+                                <span class="stat air">✈️ ${data.airborne} air</span>
+                                <span class="stat arr">⬇️ ${data.approaching} appr</span>
+                            </div>
+                        </div>
+                        <div class="airport-content" id="${sectionId}">
+                `;
+                
+                // Queue estimate for ground aircraft
+                if (data.ground > 0) {
+                    const queueTime = estimateQueueTime(data.ground, icao);
+                    html += `
+                        <div class="queue-estimate">
+                            <div class="title">⏱️ Estimated Deicing Queue</div>
+                            <div class="value">${queueTime.min}-${queueTime.max} minutes</div>
+                            <div class="note">Based on ${data.ground} aircraft on ground • Estimate only</div>
+                        </div>
+                    `;
+                }
+                
+                // Airlines breakdown
+                const airlineEntries = Object.entries(data.airlines)
+                    .sort((a, b) => (b[1].ground + b[1].airborne) - (a[1].ground + a[1].airborne))
+                    .slice(0, 12);
+                
+                if (airlineEntries.length > 0) {
+                    html += `<h4 style="margin:15px 0 10px;font-size:12px;color:#888;">Airlines</h4>`;
+                    html += `<div class="airline-grid">`;
+                    for (const [airline, counts] of airlineEntries) {
+                        html += `
+                            <div class="airline-card">
+                                <div class="name">${airline}</div>
+                                <div class="counts">
+                                    <span class="ground">🛬 ${counts.ground}</span>
+                                    <span class="air">✈️ ${counts.airborne}</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    html += `</div>`;
+                }
+                
+                // Flight list
+                if (data.flights && data.flights.length > 0) {
+                    html += `<h4 style="margin:15px 0 10px;font-size:12px;color:#888;">Recent Flights (${data.flights.length})</h4>`;
+                    html += `<div class="flights-list">`;
+                    for (const flight of data.flights) {
+                        html += `
+                            <div class="flight-row">
+                                <span class="callsign">${flight.callsign}</span>
+                                <span class="route">${flight.origin} → ${flight.destination}</span>
+                                <span class="status ${flight.status}">${flight.status.toUpperCase()}</span>
+                            </div>
+                        `;
+                    }
+                    html += `</div>`;
+                }
+                
+                html += `</div></div>`;
+            }
+            
+            content.innerHTML = html;
+        }
+        
+        function toggleSection(id) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.classList.toggle('collapsed');
+            }
+        }
+        
+        function estimateQueueTime(groundCount, icao) {
+            // Rough estimate based on typical deicing times
+            // Average deicing: 8-15 minutes per aircraft
+            // Multiple pads can work simultaneously
+            
+            const deicingPads = {
+                'KORD': 6, 'KJFK': 4, 'KDEN': 5, 'KATL': 5,
+                'KBOS': 3, 'KMSP': 4, 'KDTW': 4, 'KEWR': 3,
+                'DEFAULT': 2
+            };
+            
+            const pads = deicingPads[icao] || deicingPads['DEFAULT'];
+            const avgTimePerAircraft = 10; // minutes
+            
+            // Queue time = (aircraft / pads) * avg time
+            const estimated = Math.ceil((groundCount / pads) * avgTimePerAircraft);
+            
+            return {
+                min: Math.max(5, Math.floor(estimated * 0.7)),
+                max: Math.ceil(estimated * 1.3)
+            };
+        }
+    </script>
+</body>
+</html>
